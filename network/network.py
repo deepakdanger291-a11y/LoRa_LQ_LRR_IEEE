@@ -68,6 +68,7 @@ class Network:
 
     def send_packet(self, packet: Packet, destination: str):
         """Send a packet through the network and update metrics."""
+        packet.reset()
         self.metrics.packet_sent()
 
         route = self.routing_table.get_route(destination)

@@ -1,5 +1,6 @@
 """Experiment runner for repeated simulator trials."""
 
+import copy
 from typing import List, Optional, Sequence, Type, Union
 
 from algorithms.baseline import BaselineRouting
@@ -63,7 +64,6 @@ class ExperimentRunner:
         if not 0.0 <= failure_probability <= 1.0:
             raise ValueError("failure_probability must be between 0 and 1")
 
-        strategy_instance = self._resolve_strategy(routing_strategy)
         results: List[ExperimentResult] = []
 
         for trial_index in range(self.trials):
@@ -77,6 +77,7 @@ class ExperimentRunner:
                 seed=trial_seed,
             )
 
+            strategy_instance = self._resolve_strategy(routing_strategy)
             context = self._build_context(trial_index, node_count, packet_count, failure_probability, trial_seed, network)
             simulation_engine = SimulationEngine(None, strategy_instance, context=context)
             result = simulation_engine.run(
@@ -166,11 +167,11 @@ class ExperimentRunner:
         )
 
     def _resolve_strategy(self, routing_strategy: Union[Type[RoutingStrategy], RoutingStrategy]) -> RoutingStrategy:
-        """Return a strategy instance from either a class or an instance."""
+        """Return a fresh strategy instance from either a class or an instance."""
         if isinstance(routing_strategy, RoutingStrategy):
-            return routing_strategy
+            return copy.deepcopy(routing_strategy)
 
-        if issubclass(routing_strategy, RoutingStrategy):
+        if isinstance(routing_strategy, type) and issubclass(routing_strategy, RoutingStrategy):
             if routing_strategy is BaselineRouting:
                 return BaselineRouting()
             if routing_strategy is LQLocalRouteRepair:

@@ -37,6 +37,13 @@ class Packet:
         """
         self.delivered = True
 
+    def reset(self):
+        """Reset transient transmission state so the packet can be reused safely."""
+        self.current_node = ""
+        self.hop_count = 0
+        self.delivered = False
+        self.path = []
+
     def __str__(self):
         return (
             f"Packet("

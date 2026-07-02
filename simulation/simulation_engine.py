@@ -119,6 +119,7 @@ class SimulationEngine:
 
     def _send_packet(self, packet: Packet, destination: str) -> None:
         """Send one packet using the selected routing strategy."""
+        packet.reset()
         self.metrics.packet_sent()
 
         previous_route = self.network.routing_table.get_route(destination)

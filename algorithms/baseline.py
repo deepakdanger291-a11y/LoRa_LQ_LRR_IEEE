@@ -36,6 +36,7 @@ class BaselineRouting(RoutingStrategy):
 
     def send_packet(self, packet: Packet):
         """Backward-compatible wrapper for the original baseline API."""
+        packet.reset()
         return self.route_packet(None, packet, packet.destination)
 
     def _select_next_hop(self, network, packet: Packet, destination: str):
