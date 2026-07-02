@@ -4,10 +4,13 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from algorithms.routing_strategy import RoutingStrategy
+from core.node import Node
 from core.packet import Packet
+from core.routing_table import RouteEntry
 from network.network import Network
 from simulation.failure_engine import FailureEngine
 from metrics.metrics import Metrics
+from experiments.experiment_context import ExperimentContext
 
 
 @dataclass
@@ -32,16 +35,30 @@ class SimulationEngine:
     relying on the current network state and the selected routing strategy.
     """
 
-    def __init__(self, network: Network, strategy: RoutingStrategy):
+    def __init__(
+        self,
+        network: Optional[Network],
+        strategy: RoutingStrategy,
+        context: Optional[ExperimentContext] = None,
+    ):
         """Initialize the engine with a network and a routing strategy."""
-        self.network = network
+        if context is not None:
+            context.validate()
+            self.context = context
+            self.network = self._build_network_from_context(context)
+        else:
+            if network is None:
+                raise ValueError("network must be provided when no context is supplied")
+            self.context = None
+            self.network = network
+
         self.strategy = strategy
-        self.failure_engine = FailureEngine(network)
+        self.failure_engine = FailureEngine(self.network)
         self.metrics = Metrics()
 
     def run(
         self,
-        packet_count: int,
+        packet_count: Optional[int] = None,
         failure_probability: float = 0.0,
         source_node: Optional[str] = None,
         destination_nodes: Optional[List[str]] = None,
@@ -60,6 +77,11 @@ class SimulationEngine:
         Returns:
             An ExperimentResult containing the aggregate outcomes.
         """
+        if packet_count is None and self.context is None:
+            raise ValueError("packet_count must be provided when no context is supplied")
+        if packet_count is None:
+            packet_count = len(self.context.packet_schedule.packets)
+
         if packet_count <= 0:
             raise ValueError("packet_count must be greater than zero")
         if not 0.0 <= failure_probability <= 1.0:
@@ -79,6 +101,17 @@ class SimulationEngine:
             source = source_node
             destination = self._select_destination(destination_nodes, source)
             packet = Packet(packet_id=packet_id, source=source, destination=destination, payload=payload)
+
+            if self.context is not None:
+                packet_spec = self.context.packet_schedule.packets[packet_id - 1]
+                packet = Packet(
+                    packet_id=packet_spec.packet_id,
+                    source=packet_spec.source,
+                    destination=packet_spec.destination,
+                    payload=packet_spec.payload,
+                )
+                source = packet.source
+                destination = packet.destination
 
             self._send_packet(packet, destination)
 
@@ -126,6 +159,39 @@ class SimulationEngine:
         if len(destination_nodes) == 1:
             return destination_nodes[0]
         return destination_nodes[(self.failure_engine.random.randrange(len(destination_nodes)))]
+
+    def _build_network_from_context(self, context: ExperimentContext) -> Network:
+        """Create a network instance from an immutable experiment context."""
+        network = Network()
+        for node_spec in context.topology.nodes:
+            network.add_node(Node(node_spec.node_id))
+
+        for link_spec in context.topology.links:
+            network.connect(link_spec.source, link_spec.destination, link_spec.quality)
+            if not link_spec.initial_active:
+                network.disconnect(link_spec.source, link_spec.destination)
+
+        for route_spec in context.routing_state.routes:
+            network.routing_table.add_route(
+                destination=route_spec.destination,
+                primary=route_spec.primary_next_hop,
+                backup=route_spec.backup_next_hop,
+                primary_quality=route_spec.primary_quality,
+                backup_quality=route_spec.backup_quality,
+            )
+
+        network.routing_table.routes = {
+            destination: RouteEntry(
+                destination=route.destination,
+                primary_next_hop=route.primary_next_hop,
+                backup_next_hop=route.backup_next_hop,
+                primary_quality=route.primary_quality,
+                backup_quality=route.backup_quality,
+            )
+            for destination, route in network.routing_table.routes.items()
+        }
+
+        return network
 
     def _build_result(self) -> ExperimentResult:
         """Build an aggregate result object from the collected metrics."""

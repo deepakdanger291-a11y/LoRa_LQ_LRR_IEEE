@@ -5,6 +5,19 @@ from typing import List, Optional, Sequence, Type, Union
 from algorithms.baseline import BaselineRouting
 from algorithms.lq_lrr import LQLocalRouteRepair
 from algorithms.routing_strategy import RoutingStrategy
+from experiments.experiment_context import (
+    DestinationPolicy,
+    ExperimentContext,
+    FailureSchedule,
+    LinkSpec,
+    NodeSpec,
+    PacketSchedule,
+    PacketSpec,
+    RoutingStateSpec,
+    RouteSpec,
+    SourcePolicy,
+    TopologySpec,
+)
 from simulation.simulation_engine import ExperimentResult, SimulationEngine
 from simulation.topology_generator import TopologyGenerator
 
@@ -64,7 +77,8 @@ class ExperimentRunner:
                 seed=trial_seed,
             )
 
-            simulation_engine = SimulationEngine(network, strategy_instance)
+            context = self._build_context(trial_index, node_count, packet_count, failure_probability, trial_seed, network)
+            simulation_engine = SimulationEngine(None, strategy_instance, context=context)
             result = simulation_engine.run(
                 packet_count=packet_count,
                 failure_probability=failure_probability,
@@ -93,6 +107,63 @@ class ExperimentRunner:
             "repairs": repairs,
             "failed_links": failed_links,
         }
+
+    def _build_context(
+        self,
+        trial_index: int,
+        node_count: int,
+        packet_count: int,
+        failure_probability: float,
+        random_seed: Optional[int],
+        network,
+    ) -> ExperimentContext:
+        """Build an immutable experiment context from the current network state."""
+        node_specs = tuple(NodeSpec(node_id) for node_id in sorted(network.nodes))
+        link_specs = tuple(
+            LinkSpec(link.source_node, link.destination_node, link.link_quality, link.is_active())
+            for link in network.links
+        )
+        route_specs = []
+        for destination, route in network.routing_table.routes.items():
+            route_specs.append(
+                RouteSpec(
+                    destination=destination,
+                    primary_next_hop=route.primary_next_hop,
+                    backup_next_hop=route.backup_next_hop,
+                    primary_quality=route.primary_quality,
+                    backup_quality=route.backup_quality,
+                )
+            )
+
+        packet_specs = tuple(
+            PacketSpec(
+                packet_id=index,
+                source=node_specs[0].node_id,
+                destination=node_specs[-1].node_id if len(node_specs) > 1 else node_specs[0].node_id,
+                payload="sim",
+                generation_step=index - 1,
+            )
+            for index in range(1, packet_count + 1)
+        )
+
+        return ExperimentContext(
+            trial_id=trial_index,
+            node_count=node_count,
+            packet_count=packet_count,
+            failure_probability=failure_probability,
+            random_seed=random_seed if random_seed is not None else 0,
+            topology=TopologySpec(
+                topology_id=f"trial-{trial_index}",
+                nodes=node_specs,
+                links=link_specs,
+            ),
+            routing_state=RoutingStateSpec(routes=tuple(route_specs)),
+            failure_schedule=FailureSchedule(events=()),
+            packet_schedule=PacketSchedule(packets=packet_specs),
+            source_policy=SourcePolicy(mode="fixed", candidates=(node_specs[0].node_id,)),
+            destination_policy=DestinationPolicy(mode="fixed", candidates=(node_specs[-1].node_id if len(node_specs) > 1 else node_specs[0].node_id,)),
+            experiment_duration=max(1, packet_count),
+        )
 
     def _resolve_strategy(self, routing_strategy: Union[Type[RoutingStrategy], RoutingStrategy]) -> RoutingStrategy:
         """Return a strategy instance from either a class or an instance."""
