@@ -1,3 +1,5 @@
+from statistics import mean, pstdev, variance
+
 from core.packet import PacketOutcome
 
 
@@ -12,6 +14,7 @@ class Metrics:
         self.dropped_packets = 0
         self.recovered_packets = 0
         self.unreachable_packets = 0
+        self.hop_counts = []
 
     def packet_sent(self):
         self.total_packets += 1
@@ -29,10 +32,12 @@ class Metrics:
         if outcome == PacketOutcome.DELIVERED:
             self.delivered_packets += 1
             self.total_hops += hops
+            self.hop_counts.append(hops)
         elif outcome == PacketOutcome.RECOVERED:
             self.recovered_packets += 1
             self.delivered_packets += 1
             self.total_hops += hops
+            self.hop_counts.append(hops)
         elif outcome == PacketOutcome.DROPPED:
             self.dropped_packets += 1
             self.failed_packets += 1
@@ -44,6 +49,15 @@ class Metrics:
 
     def repair_success(self):
         self.route_repairs += 1
+
+    def mean_hop_count(self):
+        return mean(self.hop_counts) if self.hop_counts else 0.0
+
+    def variance_hop_count(self):
+        return variance(self.hop_counts) if len(self.hop_counts) > 1 else 0.0
+
+    def stddev_hop_count(self):
+        return pstdev(self.hop_counts) if len(self.hop_counts) > 1 else 0.0
 
     def print_report(self):
 
@@ -61,7 +75,15 @@ class Metrics:
         if self.delivered_packets > 0:
             print(
                 f"Average Hop Count   : "
-                f"{self.total_hops/self.delivered_packets:.2f}"
+                f"{self.mean_hop_count():.2f}"
+            )
+            print(
+                f"Hop Count Variance  : "
+                f"{self.variance_hop_count():.2f}"
+            )
+            print(
+                f"Hop Count Std Dev   : "
+                f"{self.stddev_hop_count():.2f}"
             )
 
         print(f"Route Repairs       : {self.route_repairs}")
