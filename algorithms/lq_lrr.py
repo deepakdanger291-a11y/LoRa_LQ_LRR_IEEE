@@ -3,7 +3,12 @@ from algorithms.routing_strategy import RoutingStrategy
 
 
 class LQLocalRouteRepair(RoutingStrategy):
-    """LQ-LRR routing strategy that preserves the original repair behavior."""
+    """LQ-LRR routing strategy that preserves the original repair behavior.
+
+    The implementation remains compatible with the existing route table format,
+    but it now consults the current network state before forwarding so it can
+    repair a route when the selected next hop is no longer usable.
+    """
 
     def __init__(self, routing_table):
         self.routing_table = routing_table

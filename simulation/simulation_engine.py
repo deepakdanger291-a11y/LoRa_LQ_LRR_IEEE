@@ -28,7 +28,8 @@ class SimulationEngine:
 
     The engine accepts a network instance and a routing strategy, applies
     optional random failures before each transmission, and collects metrics for
-    research-style experiments.
+    research-style experiments. It preserves the original simple behavior while
+    relying on the current network state and the selected routing strategy.
     """
 
     def __init__(self, network: Network, strategy: RoutingStrategy):
@@ -45,6 +46,7 @@ class SimulationEngine:
         source_node: Optional[str] = None,
         destination_nodes: Optional[List[str]] = None,
         seed: Optional[int] = None,
+        payload: str = "sim",
     ) -> ExperimentResult:
         """Run a simulation over a configurable number of packets.
 
@@ -76,7 +78,7 @@ class SimulationEngine:
 
             source = source_node
             destination = self._select_destination(destination_nodes, source)
-            packet = Packet(packet_id=packet_id, source=source, destination=destination, payload="sim")
+            packet = Packet(packet_id=packet_id, source=source, destination=destination, payload=payload)
 
             self._send_packet(packet, destination)
 
@@ -86,8 +88,15 @@ class SimulationEngine:
         """Send one packet using the selected routing strategy."""
         self.metrics.packet_sent()
 
+        previous_route = self.network.routing_table.get_route(destination)
+        previous_primary_hop = getattr(previous_route, "primary_next_hop", None)
+
         success = self.strategy.route_packet(self.network, packet, destination)
         if success:
+            updated_route = self.network.routing_table.get_route(destination)
+            updated_primary_hop = getattr(updated_route, "primary_next_hop", None)
+            if updated_primary_hop != previous_primary_hop:
+                self.metrics.repair_success()
             self.metrics.packet_delivered(packet.hop_count)
         else:
             self.metrics.packet_failed()

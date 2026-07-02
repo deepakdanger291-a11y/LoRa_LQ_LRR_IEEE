@@ -8,7 +8,12 @@ from metrics.metrics import Metrics
 
 
 class Network:
-    """Represent a mesh network with nodes, links, routing, and metrics."""
+    """Represent a mesh network with nodes, links, routing, and metrics.
+
+    The class remains backward compatible with the original simulator entry
+    points while now using the current topology state and a pluggable routing
+    strategy for packet forwarding.
+    """
 
     def __init__(self):
         """Initialize an empty network with routing and metrics support."""
@@ -76,9 +81,12 @@ class Network:
         print(f"Primary Route : {route.primary_next_hop}")
 
         success = False
+        previous_primary_hop = getattr(route, "primary_next_hop", None)
         if self.repair is not None:
             success = self.repair.route_packet(self, packet, destination)
-            if success and route.primary_next_hop != getattr(self.routing_table.get_route(destination), "primary_next_hop", None):
+            updated_route = self.routing_table.get_route(destination)
+            updated_primary_hop = getattr(updated_route, "primary_next_hop", None)
+            if success and updated_primary_hop != previous_primary_hop:
                 self.metrics.repair_success()
 
         if not success:
