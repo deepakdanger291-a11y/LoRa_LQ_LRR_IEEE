@@ -1,4 +1,4 @@
-from core.packet import Packet
+from core.packet import Packet, PacketOutcome
 from algorithms.routing_strategy import RoutingStrategy
 
 
@@ -19,25 +19,33 @@ class LQLocalRouteRepair(RoutingStrategy):
 
         if route is None:
             print("No Route Available")
+            packet.set_outcome(PacketOutcome.UNREACHABLE)
             return False
 
         if route.primary_next_hop is None:
             print("No Route Available")
+            packet.set_outcome(PacketOutcome.UNREACHABLE)
             return False
 
+        repaired = False
         if network is not None:
             next_hop = route.primary_next_hop
             if next_hop != destination and not network._is_link_active(next_hop, destination):
-                self.repair(destination)
+                repaired_route = self.repair(destination)
                 route = self.routing_table.get_route(destination)
-                if route is None or route.primary_next_hop is None:
+                if repaired_route is None or route is None or route.primary_next_hop is None:
                     print("Repair Failed")
+                    packet.set_outcome(PacketOutcome.FAILED)
                     return False
+                repaired = True
 
         packet.visit(packet.source)
         packet.visit(route.primary_next_hop)
         packet.visit(destination)
-        packet.mark_delivered()
+        if repaired:
+            packet.set_outcome(PacketOutcome.RECOVERED)
+        else:
+            packet.mark_delivered()
         return True
 
     def repair(self, destination):

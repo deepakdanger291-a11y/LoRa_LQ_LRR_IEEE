@@ -1,6 +1,6 @@
 from core.link import Link
 from core.node import Node
-from core.packet import Packet
+from core.packet import Packet, PacketOutcome
 from core.routing_table import RoutingTable
 from algorithms.lq_lrr import LQLocalRouteRepair
 from algorithms.routing_strategy import RoutingStrategy
@@ -74,7 +74,8 @@ class Network:
         route = self.routing_table.get_route(destination)
         if route is None:
             print("No Route Found")
-            self.metrics.packet_failed()
+            packet.set_outcome(PacketOutcome.UNREACHABLE)
+            self.metrics.record_outcome(packet.outcome, packet.hop_count)
             return
 
         print("\nSending Packet...")
@@ -91,10 +92,14 @@ class Network:
                 self.metrics.repair_success()
 
         if not success:
-            self.metrics.packet_failed()
+            if packet.outcome is None:
+                packet.set_outcome(PacketOutcome.FAILED)
+            self.metrics.record_outcome(packet.outcome, packet.hop_count)
             return
 
-        self.metrics.packet_delivered(packet.hop_count)
+        if packet.outcome is None:
+            packet.set_outcome(PacketOutcome.DELIVERED)
+        self.metrics.record_outcome(packet.outcome, packet.hop_count)
 
         print("\nPacket Delivered Successfully")
         print(packet)

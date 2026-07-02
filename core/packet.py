@@ -3,7 +3,18 @@ Packet model for the LoRa Mesh Network Simulator.
 """
 
 from dataclasses import dataclass, field
-from typing import List
+from enum import Enum
+from typing import List, Optional
+
+
+class PacketOutcome(str, Enum):
+    """Explicit final outcomes for a packet transmission."""
+
+    DELIVERED = "DELIVERED"
+    DROPPED = "DROPPED"
+    FAILED = "FAILED"
+    RECOVERED = "RECOVERED"
+    UNREACHABLE = "UNREACHABLE"
 
 
 @dataclass
@@ -20,6 +31,7 @@ class Packet:
     current_node: str = ""
     hop_count: int = 0
     delivered: bool = False
+    outcome: Optional[PacketOutcome] = None
 
     path: List[str] = field(default_factory=list)
 
@@ -35,13 +47,21 @@ class Packet:
         """
         Mark the packet as successfully delivered.
         """
-        self.delivered = True
+        self.set_outcome(PacketOutcome.DELIVERED)
+
+    def set_outcome(self, outcome: PacketOutcome):
+        """Set the explicit final outcome for the packet."""
+        if isinstance(outcome, str):
+            outcome = PacketOutcome(outcome)
+        self.outcome = outcome
+        self.delivered = outcome in {PacketOutcome.DELIVERED, PacketOutcome.RECOVERED}
 
     def reset(self):
         """Reset transient transmission state so the packet can be reused safely."""
         self.current_node = ""
         self.hop_count = 0
         self.delivered = False
+        self.outcome = None
         self.path = []
 
     def __str__(self):

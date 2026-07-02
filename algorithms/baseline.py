@@ -1,4 +1,4 @@
-from core.packet import Packet
+from core.packet import Packet, PacketOutcome
 from algorithms.routing_strategy import RoutingStrategy
 
 
@@ -30,6 +30,7 @@ class BaselineRouting(RoutingStrategy):
         print("\n*** LINK FAILURE DETECTED ***")
         print(f"{next_hop or 'selected hop'} -> {destination} is unavailable")
 
+        packet.set_outcome(PacketOutcome.DROPPED)
         print("\nPacket Dropped!")
 
         return False

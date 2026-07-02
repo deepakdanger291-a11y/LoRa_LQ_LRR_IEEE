@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from algorithms.routing_strategy import RoutingStrategy
 from core.node import Node
-from core.packet import Packet
+from core.packet import Packet, PacketOutcome
 from core.routing_table import RouteEntry
 from network.network import Network
 from simulation.failure_engine import FailureEngine
@@ -131,9 +131,13 @@ class SimulationEngine:
             updated_primary_hop = getattr(updated_route, "primary_next_hop", None)
             if updated_primary_hop != previous_primary_hop:
                 self.metrics.repair_success()
-            self.metrics.packet_delivered(packet.hop_count)
+            if packet.outcome is None:
+                packet.set_outcome(PacketOutcome.DELIVERED)
+            self.metrics.record_outcome(packet.outcome, packet.hop_count)
         else:
-            self.metrics.packet_failed()
+            if packet.outcome is None:
+                packet.set_outcome(PacketOutcome.FAILED)
+            self.metrics.record_outcome(packet.outcome, packet.hop_count)
 
     def _should_repair(self, route) -> bool:
         """Return whether a repair should be attempted before delivery."""
