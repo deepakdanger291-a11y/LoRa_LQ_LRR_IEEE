@@ -20,8 +20,13 @@ class ExperimentResult:
     packets_sent: int
     packets_delivered: int
     packets_failed: int
+    packets_dropped: int
+    packets_recovered: int
+    packets_unreachable: int
     packet_delivery_ratio: float
     average_hop_count: float
+    variance: float
+    standard_deviation: float
     repairs: int
     failed_links: int
 
@@ -213,8 +218,13 @@ class SimulationEngine:
             packets_sent=total_packets,
             packets_delivered=delivered_packets,
             packets_failed=failed_packets,
+            packets_dropped=self.metrics.dropped_packets,
+            packets_recovered=self.metrics.recovered_packets,
+            packets_unreachable=self.metrics.unreachable_packets,
             packet_delivery_ratio=(delivered_packets / total_packets * 100 if total_packets else 0.0),
             average_hop_count=average_hops,
+            variance=self.metrics.variance_hop_count(),
+            standard_deviation=self.metrics.stddev_hop_count(),
             repairs=self.metrics.route_repairs,
             failed_links=len(self.failure_engine.get_failed_links()),
         )

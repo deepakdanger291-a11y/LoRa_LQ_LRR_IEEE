@@ -1,5 +1,6 @@
 from core.packet import Packet, PacketOutcome
 from algorithms.routing_strategy import RoutingStrategy
+from core.routing_table import RoutingTable
 
 
 class LQLocalRouteRepair(RoutingStrategy):
@@ -15,6 +16,9 @@ class LQLocalRouteRepair(RoutingStrategy):
 
     def route_packet(self, network, packet: Packet, destination: str) -> bool:
         """Route a packet using the LQ-LRR strategy."""
+        if self.routing_table is None:
+            self.routing_table = network.routing_table if network is not None else RoutingTable()
+
         route = self.routing_table.get_route(destination)
 
         if route is None:

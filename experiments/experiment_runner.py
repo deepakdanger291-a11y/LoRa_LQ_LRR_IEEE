@@ -6,6 +6,7 @@ from typing import List, Optional, Sequence, Type, Union
 from algorithms.baseline import BaselineRouting
 from algorithms.lq_lrr import LQLocalRouteRepair
 from algorithms.routing_strategy import RoutingStrategy
+from core.routing_table import RoutingTable
 from experiments.experiment_context import (
     DestinationPolicy,
     ExperimentContext,
@@ -175,7 +176,7 @@ class ExperimentRunner:
             if routing_strategy is BaselineRouting:
                 return BaselineRouting()
             if routing_strategy is LQLocalRouteRepair:
-                return LQLocalRouteRepair(None)
+                return LQLocalRouteRepair(RoutingTable())
             return routing_strategy()
 
         raise TypeError("routing_strategy must be a RoutingStrategy instance or class")

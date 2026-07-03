@@ -1,5 +1,10 @@
+from typing import TYPE_CHECKING, Optional
+
 from core.packet import Packet, PacketOutcome
 from algorithms.routing_strategy import RoutingStrategy
+
+if TYPE_CHECKING:
+    from network.network import Network
 
 
 class BaselineRouting(RoutingStrategy):
@@ -10,7 +15,7 @@ class BaselineRouting(RoutingStrategy):
     semantics for backward-compatible demonstrations.
     """
 
-    def route_packet(self, network, packet: Packet, destination: str) -> bool:
+    def route_packet(self, network: Optional["Network"], packet: Packet, destination: str) -> bool:
         """Route a packet using the baseline behavior."""
         print("\n===== BASELINE ROUTING =====")
 
@@ -40,7 +45,7 @@ class BaselineRouting(RoutingStrategy):
         packet.reset()
         return self.route_packet(None, packet, packet.destination)
 
-    def _select_next_hop(self, network, packet: Packet, destination: str):
+    def _select_next_hop(self, network: Optional["Network"], packet: Packet, destination: str):
         """Select a next hop from the current network state when available."""
         if network is None:
             return "B"

@@ -1,5 +1,6 @@
 import unittest
 
+from algorithms.lq_lrr import LQLocalRouteRepair
 from algorithms.routing_strategy import RoutingStrategy
 from core.packet import Packet
 from experiments.experiment_runner import ExperimentRunner
@@ -31,6 +32,13 @@ class ExperimentRunnerTests(unittest.TestCase):
         )
 
         self.assertEqual(strategy.calls, 0)
+
+    def test_runner_can_initialize_lq_lrr_strategy_from_class(self):
+        runner = ExperimentRunner(trials=1)
+        strategy = runner._resolve_strategy(LQLocalRouteRepair)
+
+        self.assertIsInstance(strategy, LQLocalRouteRepair)
+        self.assertIsNotNone(strategy.routing_table)
 
 
 if __name__ == "__main__":
