@@ -41,7 +41,7 @@ class ExperimentContextTests(unittest.TestCase):
                 links=(LinkSpec("1", "2", 0.9, True),),
             ),
             routing_state=RoutingStateSpec(
-                routes=(RouteSpec(destination="2", primary_next_hop="2", backup_next_hop=None, primary_quality=0.9),)
+                routes=(RouteSpec(destination="2", primary_next_hop="1", backup_next_hop=None, primary_quality=0.9),)
             ),
             failure_schedule=FailureSchedule(events=()),
             packet_schedule=PacketSchedule(
@@ -58,6 +58,33 @@ class ExperimentContextTests(unittest.TestCase):
         self.assertEqual(result.packets_sent, 1)
         self.assertEqual(result.packets_delivered, 1)
         self.assertIsNotNone(engine.network.routing_table.get_route("2"))
+
+    def test_context_validation_rejects_invalid_route_targets(self):
+        context = ExperimentContext(
+            trial_id=1,
+            node_count=2,
+            packet_count=1,
+            failure_probability=0.0,
+            random_seed=7,
+            topology=TopologySpec(
+                topology_id="tiny",
+                nodes=(NodeSpec("1"), NodeSpec("2")),
+                links=(LinkSpec("1", "2", 0.9, True),),
+            ),
+            routing_state=RoutingStateSpec(
+                routes=(RouteSpec(destination="2", primary_next_hop="2", backup_next_hop=None, primary_quality=0.9),)
+            ),
+            failure_schedule=FailureSchedule(events=()),
+            packet_schedule=PacketSchedule(
+                packets=(PacketSpec(packet_id=1, source="1", destination="2", payload="ctx", generation_step=0),)
+            ),
+            source_policy=SourcePolicy(mode="fixed", candidates=("1",)),
+            destination_policy=DestinationPolicy(mode="fixed", candidates=("2",)),
+            experiment_duration=1,
+        )
+
+        with self.assertRaises(ValueError):
+            context.validate()
 
 
 if __name__ == "__main__":

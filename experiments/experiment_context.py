@@ -158,10 +158,16 @@ class ExperimentContext:
         for route in self.routing_state.routes:
             if route.destination not in node_set:
                 errors.append(f"route destination does not exist: {route.destination}")
+            if route.destination == route.primary_next_hop:
+                errors.append(f"invalid primary hop for destination {route.destination}: next hop cannot be the destination")
             if route.primary_next_hop not in node_set:
                 errors.append(f"primary hop does not exist: {route.primary_next_hop}")
             if route.backup_next_hop is not None and route.backup_next_hop not in node_set:
                 errors.append(f"backup hop does not exist: {route.backup_next_hop}")
+            if route.backup_next_hop is not None and route.backup_next_hop == route.destination:
+                errors.append(f"invalid backup hop for destination {route.destination}: backup hop cannot be the destination")
+            if route.backup_next_hop is not None and route.backup_next_hop == route.primary_next_hop:
+                errors.append(f"invalid backup hop for destination {route.destination}: backup hop cannot equal the primary hop")
 
         for event in self.failure_schedule.events:
             if event.step < 0 or event.step >= self.experiment_duration:

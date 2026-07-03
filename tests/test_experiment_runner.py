@@ -40,6 +40,19 @@ class ExperimentRunnerTests(unittest.TestCase):
         self.assertIsInstance(strategy, LQLocalRouteRepair)
         self.assertIsNotNone(strategy.routing_table)
 
+    def test_runner_builds_initial_routes_for_lq_lrr_experiments(self):
+        runner = ExperimentRunner(trials=1)
+        results = runner.run_experiments(
+            node_count=4,
+            packet_count=2,
+            failure_probability=0.0,
+            random_seed=7,
+            routing_strategy=LQLocalRouteRepair,
+        )
+
+        self.assertEqual(results[0].packets_unreachable, 0)
+        self.assertGreater(results[0].packets_delivered, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

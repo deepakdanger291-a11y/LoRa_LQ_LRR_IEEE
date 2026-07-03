@@ -77,8 +77,10 @@ class ExperimentRunner:
                 max_link_quality=0.95,
                 seed=trial_seed,
             )
+            self._initialize_routing_state(network)
 
             strategy_instance = self._resolve_strategy(routing_strategy)
+            self._seed_strategy_with_network(strategy_instance, network)
             context = self._build_context(trial_index, node_count, packet_count, failure_probability, trial_seed, network)
             simulation_engine = SimulationEngine(None, strategy_instance, context=context)
             result = simulation_engine.run(
@@ -126,7 +128,11 @@ class ExperimentRunner:
             for link in network.links
         )
         route_specs = []
-        for destination, route in network.routing_table.routes.items():
+        for destination in sorted(network.nodes):
+            route = network.routing_table.get_route(destination)
+            if route is None:
+                continue
+
             route_specs.append(
                 RouteSpec(
                     destination=destination,
@@ -166,6 +172,46 @@ class ExperimentRunner:
             destination_policy=DestinationPolicy(mode="fixed", candidates=(node_specs[-1].node_id if len(node_specs) > 1 else node_specs[0].node_id,)),
             experiment_duration=max(1, packet_count),
         )
+
+    def _initialize_routing_state(self, network) -> None:
+        """Populate the network's routing table from the generated topology."""
+        node_ids = sorted(network.nodes)
+        for destination in node_ids:
+            if network.routing_table.get_route(destination) is not None:
+                continue
+
+            candidate_hops = [
+                neighbour
+                for neighbour in sorted(network.nodes[destination].neighbours)
+                if neighbour != destination
+            ]
+            if candidate_hops:
+                primary_next_hop = candidate_hops[0]
+                primary_quality = network.nodes[destination].get_link_quality(primary_next_hop)
+            else:
+                primary_next_hop = next((node_id for node_id in node_ids if node_id != destination), destination)
+                primary_quality = 0.0
+
+            network.routing_table.add_route(
+                destination=destination,
+                primary=primary_next_hop,
+                backup=None,
+                primary_quality=primary_quality,
+                backup_quality=0.0,
+            )
+
+    def _seed_strategy_with_network(self, strategy: RoutingStrategy, network) -> None:
+        """Initialize a strategy's routing table from the network state when available."""
+        if isinstance(strategy, LQLocalRouteRepair):
+            strategy.routing_table = RoutingTable()
+            for destination, route in network.routing_table.routes.items():
+                strategy.routing_table.add_route(
+                    destination=destination,
+                    primary=route.primary_next_hop,
+                    backup=route.backup_next_hop,
+                    primary_quality=route.primary_quality,
+                    backup_quality=route.backup_quality,
+                )
 
     def _resolve_strategy(self, routing_strategy: Union[Type[RoutingStrategy], RoutingStrategy]) -> RoutingStrategy:
         """Return a fresh strategy instance from either a class or an instance."""
